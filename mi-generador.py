@@ -4,17 +4,20 @@ import sys
 output_file = sys.argv[1]
 num_clients = int(sys.argv[2])
 
-# - PYTHONUNBUFFERED=1. Ensure python output is sent immediately (for logging)
 docker_compose = """services:
   server:
     container_name: server
     image: server:latest
     entrypoint: python3 /main.py
     environment:
+      # Ensure python output is sent immediately (for logging)
       - PYTHONUNBUFFERED=1
       - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
+    volumes:
+      # Mount config.ini from host machine to container
+      - ./server/config.ini:/config.ini
 """
 
 for i in range(1, num_clients + 1):
@@ -30,18 +33,18 @@ for i in range(1, num_clients + 1):
       - testing_net
     depends_on:
       - server
+    volumes:
+      # Mount config.yaml from host machine to container
+      - ./client/config.yaml:/config.yaml
 """
     docker_compose += client_service
 
 
-# testing_net: Isolated network that allow containers to communicate
-# ipam: IP Address Management settings, used to configure the network
-# driver: default. Use default IPAM driver to manage IP addresses
 networks_section = """
 networks:
-  testing_net:
-    ipam:
-      driver: default
+  testing_net: # Isolated network that allow containers to communicate
+    ipam: # IP Address Management settings, used to configure the network
+      driver: default # Use default IPAM driver to manage IP addresses
       config:
         - subnet: 172.25.125.0/24
 """
