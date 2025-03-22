@@ -5,8 +5,7 @@ output_file = sys.argv[1]
 num_clients = int(sys.argv[2])
 
 # - PYTHONUNBUFFERED=1. Ensure python output is sent immediately (for logging)
-docker_compose = """version: '3.8'
-services:
+docker_compose = """services:
   server:
     container_name: server
     image: server:latest
