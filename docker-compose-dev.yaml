@@ -1,10 +1,11 @@
-name: tp0
+version: "3.8"
 services:
   server:
     container_name: server
     image: server:latest
     entrypoint: python3 /main.py
     environment:
+      # Ensure python output is sent immediately (for logging)
       - PYTHONUNBUFFERED=1
       - LOGGING_LEVEL=DEBUG
     networks:
@@ -23,8 +24,8 @@ services:
       - server
 
 networks:
-  testing_net:
-    ipam:
-      driver: default
+  testing_net: # Isolated network that allow containers to communicate
+    ipam: # IP Address Management settings, used to configure the network
+      driver: default # Use default IPAM driver to manage IP addresses
       config:
         - subnet: 172.25.125.0/24
