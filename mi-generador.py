@@ -12,7 +12,6 @@ docker_compose = """services:
     environment:
       # Ensure python output is sent immediately (for logging)
       - PYTHONUNBUFFERED=1
-      - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
     volumes:
@@ -28,7 +27,6 @@ for i in range(1, num_clients + 1):
     entrypoint: /client
     environment:
       - CLI_ID={i}
-      - CLI_LOG_LEVEL=DEBUG
     networks:
       - testing_net
     depends_on:
