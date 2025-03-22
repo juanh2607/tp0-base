@@ -1,11 +1,10 @@
-version: "3.8"
+version: '3.8'
 services:
   server:
     container_name: server
     image: server:latest
     entrypoint: python3 /main.py
     environment:
-      # Ensure python output is sent immediately (for logging)
       - PYTHONUNBUFFERED=1
       - LOGGING_LEVEL=DEBUG
     networks:
@@ -23,9 +22,57 @@ services:
     depends_on:
       - server
 
+  client2:
+    container_name: client2
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=2
+      - CLI_LOG_LEVEL=DEBUG
+    networks:
+      - testing_net
+    depends_on:
+      - server
+
+  client3:
+    container_name: client3
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=3
+      - CLI_LOG_LEVEL=DEBUG
+    networks:
+      - testing_net
+    depends_on:
+      - server
+
+  client4:
+    container_name: client4
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=4
+      - CLI_LOG_LEVEL=DEBUG
+    networks:
+      - testing_net
+    depends_on:
+      - server
+
+  client5:
+    container_name: client5
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=5
+      - CLI_LOG_LEVEL=DEBUG
+    networks:
+      - testing_net
+    depends_on:
+      - server
+
 networks:
-  testing_net: # Isolated network that allow containers to communicate
-    ipam: # IP Address Management settings, used to configure the network
-      driver: default # Use default IPAM driver to manage IP addresses
+  testing_net:
+    ipam:
+      driver: default
       config:
         - subnet: 172.25.125.0/24
