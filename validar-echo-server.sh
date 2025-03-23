@@ -4,7 +4,12 @@
 SERVER_HOST="server"
 SERVER_PORT=12345
 MESSAGE="testing echo server"
-NETWORK_NAME="tp0-base_testing_net"
+# Docker prepends the name: to the network to create the network name. If name is not defined, it
+# prepends the parent folder name.
+# This can be overwritten with the `name:` tag within the `network:` tag
+NETWORK_NAME="tp0_testing_net"
+
+# echo $(docker network ls)
 
 # Command breakdown:
 #   * `docker run` executes a container based on an image.
@@ -15,7 +20,7 @@ NETWORK_NAME="tp0-base_testing_net"
 #   * `nc` acts as a client, sending the message received through the pipe to the specified server and port
 RESPONSE=$(docker run --rm --network "$NETWORK_NAME" busybox sh -c "echo '$MESSAGE' | nc '$SERVER_HOST' '$SERVER_PORT'")
 
-if [[ "$RESPONSE" == "$MESSAGE" ]]; then
+if [ "$RESPONSE" = "$MESSAGE" ]; then
     echo "action: test_echo_server | result: success"
 else
     echo "action: test_echo_server | result: fail"

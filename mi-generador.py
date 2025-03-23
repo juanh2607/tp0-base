@@ -4,7 +4,8 @@ import sys
 output_file = sys.argv[1]
 num_clients = int(sys.argv[2])
 
-docker_compose = """services:
+docker_compose = """name: tp0
+services:
   server:
     container_name: server
     image: server:latest
