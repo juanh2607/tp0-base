@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/op/go-logging"
@@ -111,5 +113,22 @@ func main() {
 	}
 
 	client := common.NewClient(clientConfig)
-	client.StartClientLoop()
+
+	// goroutine. These are functions that are executed concurrently. Think of it as a lightweight
+	// thread administered by the Go runtime. In this case an anonymous function is used
+	go func() {
+		client.StartClientLoop()
+	}()
+
+	// Graceful shutdown
+	// Create a os.Signal channel with a capacity of 1 (it can store just one value without blocking)
+	quit := make(chan os.Signal, 1)
+	// Any SIGINT or SIGTERM signal must be sent to the channel "quit"
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Wait for termination signal
+	<-quit
+
+	close(quit)
+	client.Shutdown()
 }

@@ -1,26 +1,29 @@
 # Enunciado
-### Ejercicio N°3:
-Crear un script de bash `validar-echo-server.sh` que permita verificar el correcto funcionamiento del servidor utilizando el comando `netcat` para interactuar con el mismo. Dado que el servidor es un echo server, se debe enviar un mensaje al servidor y esperar recibir el mismo mensaje enviado.
-
-En caso de que la validación sea exitosa imprimir: `action: test_echo_server | result: success`, de lo contrario imprimir:`action: test_echo_server | result: fail`.
-
-El script deberá ubicarse en la raíz del proyecto. Netcat no debe ser instalado en la máquina _host_ y no se pueden exponer puertos del servidor para realizar la comunicación (hint: `docker network`). `
+### Ejercicio N°4:
+Modificar servidor y cliente para que ambos sistemas terminen de forma _graceful_ al recibir la signal SIGTERM. 
+Terminar la aplicación de forma _graceful_ implica que todos los _file descriptors_ 
+(entre los que se encuentran archivos, sockets, threads y procesos) deben cerrarse correctamente 
+antes que el thread de la aplicación principal muera. Loguear mensajes en el cierre de cada recurso 
+(hint: Verificar que hace el flag `-t` utilizado en el comando `docker compose down`).
 
 # Solución
+Tanto en el cliente como en el servidor se genero una suscripción a la emisión de la señal `SIGTERM` y 
+`SIGINT`.  
+Tras la recepción de esta señal:
+* El server finaliza el loop principal, cerrando el socket con el cuál recibe nuevas conexiones. Si
+  había una conexión en proceso, se finaliza (dado que es enviar un solo mensaje).
+* El cliente cierra su socket.
 
-El script consiste principalmente del siguiente comando:
-```sh
-docker run --rm --network "$NETWORK_NAME" busybox sh -c "echo '$MESSAGE' | nc '$SERVER_HOST' '$SERVER_PORT'"
+Ambos loggean la limpieza de recursos y el correcto cierre del proceso.
+
+```
+client1  | 2025-03-23 20:59:16 INFO     action: shutdown | result: success | client_id: 1
+client1 exited with code 0
+server   | 2025-03-23 20:59:16 INFO     action: shutdown | result: in_progress
+server   | 2025-03-23 20:59:16 INFO     action: closing_listener | result: success
+server   | 2025-03-23 20:59:16 INFO     action: shutdown | result: success
+server exited with code 0
 ```
 
-En términos generales, este comando crea un container que se conecta a la red `tp0_testing_net`, utilizando
-la imágen `busybox` (la cuál contiene el comando `netcat`) y envía el mensaje al servidor, utilizando
-el hostname y puerto de la red interna creada por docker (por lo que no se expone el puerto real).
-
-Siendo más detallado, el comando está compuesto por las siguientes partes:
-* `docker run` crea un contenedor basado en alguna imágen.
-* `--rm` automáticamente elimina el contenedor una vez finaliza la ejecución.
-* `--network` conecta al contenedor a la red especificada.
-* `busybox` es la imágen a usar. Es una imágen ligera de Linux que incluye el comando `nc`.
-* `sh -c` indica que se ejecute el string especificado como un comando de shell.
-* `nc` actúa como un cliente, envíando el mensaje recibido desde el pipe al servidor especificado.
+El flag `-t`, `--timeout` permite especificar el tiempo de espera antes de forzar el apagado del contenedor.
+Este se encuentra en uso en el comando `make docker-compose-down`.
