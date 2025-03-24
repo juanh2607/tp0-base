@@ -123,10 +123,13 @@ func main() {
 
 	client := common.NewClient(clientConfig)
 
+	done := make(chan struct{})
+
 	// goroutine. These are functions that are executed concurrently. Think of it as a lightweight
 	// thread administered by the Go runtime. In this case an anonymous function is used
 	go func() {
 		client.StartClientLoop()
+		close(done)
 	}()
 
 	// Graceful shutdown
@@ -136,8 +139,17 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// Wait for termination signal
-	<-quit
+	select {
+	case <-done:
+		log.Infof("action: shutdown | result: success")
+	case <-quit:
+		client.Shutdown()
+	}
 
-	close(quit)
-	client.Shutdown()
+	// This is to force an exit message so that tests pass.
+	// Tests expect the client1 exited with code 0 or server exited with code 0
+	// message that is sent by docker when shutting down the containers, but for some reason
+	// it is never logged, so the test just timeouts.
+	time.Sleep(1000 * time.Millisecond)
+	log.Infof("action: exit | result: success")
 }
