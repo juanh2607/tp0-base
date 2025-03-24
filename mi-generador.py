@@ -21,7 +21,7 @@ services:
 """
 
 for i in range(1, num_clients + 1):
-    csv_file = f"./.data/dataset/agency-{i}.csv"
+    csv_file = f"./.data/agency-{i}.csv"
 
     client_service = f"""
   client{i}:

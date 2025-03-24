@@ -102,7 +102,9 @@ class Server:
     def __handle_store_batch(self, client_sock: socket.socket, batch: List[Bet]):
         store_bets(batch)
 
-        logging.info(f"action: storing_batch | result: success | amount: {len(batch)} ")
+        logging.info(
+            f"action: apuesta_recibida | result: success | cantidad: {len(batch)}"
+        )
 
         # Send a response back to the client
         send_message_with_length(client_sock, "ok")

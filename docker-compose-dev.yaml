@@ -26,7 +26,7 @@ services:
     volumes:
       # Mount config.yaml from host machine to container
       - ./client/config.yaml:/config.yaml
-      - ./.data/dataset/agency-1.csv:/agency.csv
+      - ./.data/agency-1.csv:/agency.csv
 
 networks:
   testing_net: # Isolated network that allow containers to communicate
