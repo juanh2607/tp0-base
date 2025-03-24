@@ -21,6 +21,8 @@ services:
 """
 
 for i in range(1, num_clients + 1):
+    csv_file = f"./.data/dataset/agency-{i}.csv"
+
     client_service = f"""
   client{i}:
     container_name: client{i}
@@ -28,11 +30,6 @@ for i in range(1, num_clients + 1):
     entrypoint: /client
     environment:
       - CLI_ID={i}
-      - CLI_FIRST_NAME=Santiago Lionel
-      - CLI_LAST_NAME=Lorca
-      - CLI_DOCUMENT=30904465 
-      - CLI_BIRTHDATE=1999-03-17
-      - CLI_NUMBER=7574
     networks:
       - testing_net
     depends_on:
@@ -40,6 +37,7 @@ for i in range(1, num_clients + 1):
     volumes:
       # Mount config.yaml from host machine to container
       - ./client/config.yaml:/config.yaml
+      - {csv_file}:/agency.csv
 """
     docker_compose += client_service
 
