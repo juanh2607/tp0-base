@@ -21,3 +21,37 @@ Se deberá implementar un módulo de comunicación entre el cliente y el servido
 * Correcto empleo de sockets, incluyendo manejo de errores y evitando los fenómenos conocidos como [_short read y short write_](https://cs61.seas.harvard.edu/site/2018/FileDescriptors/).
 
 # Solución
+### Protocolo
+Los mensajes son envíados con el siguiente formato:
+`<msg id: ui8><longitud mensaje: uint32><longitud campo1: uint32><campo1: string>...`.
+
+El cliente envía los datos de la apuesta al servidor con el msg id `STORE_BET` y espera a que este le responda para asegurar
+que llegó la apuesta.
+
+El servidor handlea el mensaje recibido y contesta con un mensaje `ok` enviado con el formato 
+`<longitud mensaje: uint32><mensaje: str>`.
+
+### Responsabilidades
+Las responsabilidades fueron separadas en dos archivos (tanto para el cliente como para el servidor):
+* `betting_protocol`: donde se encuentra que mensajes enviar, recibir y lógica como esperar a que el
+  servidor conteste.
+* `serializer`: se encuentran definidas acá las funciones que serializan y deserializan los datos.
+
+Los archivos de server y client son los encargados de manejar la lógica de negocio.
+
+### Manejo de short reads y short writes
+Tanto en el servidor como en el cliente se crearon funciones del estilo `writeExactly` y `recvExactly`
+que se aseguran de enviar o leer todos los bytes.
+
+### Ejemplo de salida:
+```
+server   | 2025-03-24 03:13:53 DEBUG    action: config | result: success | port: 12345 | listen_backlog: 5 | logging_level: DEBUG
+server   | 2025-03-24 03:13:53 INFO     action: accept_connections | result: in_progress
+server   | 2025-03-24 03:13:53 INFO     action: accept_connections | result: success | ip: 172.25.125.3
+server   | 2025-03-24 03:13:53 INFO     action: receive_message | result: success | ip: 172.25.125.3 | msg: STORE_BET
+server   | 2025-03-24 03:13:53 INFO     action: apuesta_almacenada | result: success | dni: 30904465 | numero: 7574
+server   | 2025-03-24 03:13:53 INFO     action: accept_connections | result: in_progress
+client1  | 2025-03-24 03:13:53 INFO     action: config | result: success | client_id: 1 | server_address: server:12345 | loop_amount: 500 | loop_period: 150ms | log_level: INFO
+client1  | 2025-03-24 03:13:53 INFO     action: sending_bet | result: in_progress | bet_number: 7574
+client1  | 2025-03-24 03:13:53 INFO     action: apuesta_enviada | result: success | dni: 30904465 | numero: 7574
+```

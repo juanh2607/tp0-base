@@ -40,6 +40,13 @@ func InitConfig() (*viper.Viper, error) {
 	v.BindEnv("loop", "amount")
 	v.BindEnv("log", "level")
 
+	// Betting env variables
+	v.BindEnv("first_name")
+	v.BindEnv("last_name")
+	v.BindEnv("document")
+	v.BindEnv("birthdate")
+	v.BindEnv("number")
+
 	// Try to read configuration from config file. If config file
 	// does not exists then ReadInConfig will fail but configuration
 	// can be loaded from the environment variables so we shouldn't
@@ -117,7 +124,7 @@ func main() {
 	// goroutine. These are functions that are executed concurrently. Think of it as a lightweight
 	// thread administered by the Go runtime. In this case an anonymous function is used
 	go func() {
-		client.StartClientLoop()
+		client.StartClientLoop(v)
 	}()
 
 	// Graceful shutdown

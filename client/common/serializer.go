@@ -7,7 +7,7 @@ import (
 )
 
 // Encodes a bet in binary with the following format:
-// <total_len: i32><len1: i32><field 1>...
+// <msg id: ui8><total_len: i32><len1: i32><field 1>...
 func encodeBet(bet Bet) ([]byte, error) {
 	buf := new(bytes.Buffer)
 

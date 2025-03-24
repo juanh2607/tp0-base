@@ -1,5 +1,6 @@
 import socket
 import logging
+from typing import Tuple, Any
 from common.utils import store_bets
 from common.serializer import (
     deserialize_message,
@@ -14,7 +15,12 @@ MESSAGE_IDS = {
 STORE_BET = 1
 
 
-def receive_message(client_sock: socket.socket):
+def receive_message(client_sock: socket.socket) -> Tuple[int, Any]:
+    """
+    Returns a tuple with:
+        * [0]: the msg id
+        * [1]: the data, if any, that comes with the message
+    """
     try:
         msg, data = deserialize_message(client_sock)
 
@@ -24,23 +30,10 @@ def receive_message(client_sock: socket.socket):
         )
 
         if msg == STORE_BET:
-            handle_store_bet(client_sock, data)
+            return msg, deserialize_bet(data)
         else:
             raise ValueError(f"Unknown message received: {msg}")
 
     except Exception as e:
         logging.error(f"Error while receiving and deserializing message: {e}")
         return None
-
-
-def handle_store_bet(client_sock: socket.socket, data: bytes):
-    """Stores the bets and sends a response to the client if successful"""
-    bet = deserialize_bet(data)
-
-    store_bets([bet])
-
-    # Send a response back to the client
-    send_message_with_length(client_sock, "ok")
-    logging.info(
-        f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}"
-    )

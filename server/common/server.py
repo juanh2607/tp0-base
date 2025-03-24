@@ -1,7 +1,9 @@
 import socket
 import logging
 import signal
-from common.betting_protocol import receive_message
+from common.betting_protocol import receive_message, STORE_BET
+from common.utils import store_bets, Bet
+from common.serializer import send_message_with_length
 
 
 class Server:
@@ -70,8 +72,21 @@ class Server:
         client socket will also be closed
         """
         try:
-            receive_message(client_sock)
+            msg, data = receive_message(client_sock)
+
+            if msg == STORE_BET:
+                self.__handle_store_bet(client_sock, data)
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
             client_sock.close()
+
+    def __handle_store_bet(self, client_sock: socket.socket, bet: Bet):
+        """Stores the bets and sends a response to the client if successful"""
+        store_bets([bet])
+
+        # Send a response back to the client
+        send_message_with_length(client_sock, "ok")
+        logging.info(
+            f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}"
+        )

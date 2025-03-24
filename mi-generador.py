@@ -28,6 +28,11 @@ for i in range(1, num_clients + 1):
     entrypoint: /client
     environment:
       - CLI_ID={i}
+      - CLI_FIRST_NAME=Santiago Lionel
+      - CLI_LAST_NAME=Lorca
+      - CLI_DOCUMENT=30904465 
+      - CLI_BIRTHDATE=1999-03-17
+      - CLI_NUMBER=7574
     networks:
       - testing_net
     depends_on:
