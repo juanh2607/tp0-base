@@ -1,5 +1,5 @@
 import socket
-from typing import Tuple
+from typing import Tuple, List
 from common.utils import Bet, recv_exactly, send_exactly
 
 
@@ -11,11 +11,15 @@ def deserialize_message(client_sock: socket.socket) -> Tuple[int, bytes]:
 
     Can raise exceptions
     """
+    from common.betting_protocol import FIN
+
     # <msg id: u8><total_length: u32>
     msg_byte = recv_exactly(client_sock, 1)
-    total_length_bytes = recv_exactly(client_sock, 4)
-
     msg = int.from_bytes(msg_byte, byteorder="big")
+    if msg == FIN:
+        return msg, None
+
+    total_length_bytes = recv_exactly(client_sock, 4)
     total_length = int.from_bytes(total_length_bytes, byteorder="big")
 
     data = recv_exactly(client_sock, total_length)
@@ -54,6 +58,29 @@ def send_message_with_length(sock: socket.socket, message: str):
 
     length = len(data)
     length_bytes = length.to_bytes(4, byteorder="big")
-
     send_exactly(sock, length_bytes)
     send_exactly(sock, data)
+
+
+def deserialize_batch(data: bytes) -> List[Bet]:
+    """
+    Expects data with the following format:
+    * `<total bets: uint32><length bet 1: uint32><length field1: uint32><field1: str>...`
+    """
+    index = 0
+    total_bets = int.from_bytes(data[index : index + 4], byteorder="big")
+    index += 4
+
+    bets: List[Bet] = []
+
+    for _ in range(0, total_bets):
+        bet_size = int.from_bytes(data[index : index + 4], byteorder="big")
+        index += 4
+
+        bet_data = data[index : index + bet_size]
+        index += bet_size
+
+        bet = deserialize_bet(bet_data)
+        bets.append(bet)
+
+    return bets

@@ -1,21 +1,23 @@
 package common
 
 import (
+	"encoding/csv"
 	"net"
+	"os"
 	"time"
 
 	"github.com/op/go-logging"
-	"github.com/spf13/viper"
 )
 
 var log = logging.MustGetLogger("log")
 
 // ClientConfig Configuration used by the client
 type ClientConfig struct {
-	ID            string
-	ServerAddress string
-	LoopAmount    int
-	LoopPeriod    time.Duration
+	ID             string
+	ServerAddress  string
+	LoopAmount     int
+	LoopPeriod     time.Duration
+	BatchMaxAmount int
 }
 
 // Client Entity that encapsulates how
@@ -49,36 +51,74 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-// StartClientLoop Send messages to the client until some time threshold is met
-func (c *Client) StartClientLoop(v *viper.Viper) {
-	bet := Bet{
-		Agency:    v.GetString("id"),
-		FirstName: v.GetString("first_name"),
-		LastName:  v.GetString("last_name"),
-		Document:  v.GetString("document"),
-		Birthdate: v.GetString("birthdate"),
-		Number:    v.GetString("number"),
+func getBetsReader() (*csv.Reader, *os.File, error) {
+	file, err := os.Open("agency.csv")
+	if err != nil {
+		return nil, nil, err
 	}
+
+	reader := csv.NewReader(file)
+	return reader, file, nil
+}
+
+// StartClientLoop Send messages to the client until some time threshold is met
+func (c *Client) StartClientLoop() {
+	reader, file, err := getBetsReader()
+	if err != nil {
+		log.Errorf("action: open_file | result: fail | client_id: %v | file: agency.csv | error: %v", c.config.ID, err)
+		return
+	}
+	defer file.Close()
 
 	c.createClientSocket()
 
-	log.Infof("action: sending_bet | result: in_progress | bet_number: %v", bet.Number)
+	var batch []Bet
+	for {
+		record, err := reader.Read()
+		if err != nil {
+			break
+		}
 
-	response, err := SendBet(c.conn, bet)
-	if err != nil {
-		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-			c.config.ID,
-			err,
-		)
+		if len(record) < 5 {
+			log.Warningf("action: parse_csv | result: fail | client_id: %v | reason: invalid_row | data: %v | data_length: %v", c.config.ID, record, len(record))
+			continue
+		}
+
+		bet := Bet{
+			Agency:    c.config.ID,
+			FirstName: record[0],
+			LastName:  record[1],
+			Document:  record[2],
+			Birthdate: record[3],
+			Number:    record[4],
+		}
+
+		batch = append(batch, bet)
+
+		if len(batch) == c.config.BatchMaxAmount {
+			response, err := SendBatch(c.conn, batch)
+			if err != nil {
+				log.Errorf("action: send_batch | result: fail | client_id: %v | error: %v", c.config.ID, err)
+				return
+			}
+
+			log.Infof("action: send_batch | result: success | client_id: %v | batch_size: %v | response: %v",
+				c.config.ID, len(batch), response)
+
+			// Empty the batch while maintaining its capacity
+			batch = batch[:0]
+		}
 	}
 
-	if response == "ok" {
-		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v", bet.Document, bet.Number)
-	} else {
-		log.Infof("action: apuesta_enviada | result: fail | response: %v", response)
+	if len(batch) > 0 {
+		SendBatch(c.conn, batch)
 	}
+
+	log.Infof("action: send_FIN | result: success | client_id: %v", c.config.ID)
+	SendFin(c.conn)
 
 	c.conn.Close()
+	c.conn = nil
 }
 
 func (c *Client) Shutdown() {

@@ -1,7 +1,8 @@
 import socket
 import logging
 import signal
-from common.betting_protocol import receive_message, STORE_BET
+from typing import List
+from common.betting_protocol import receive_message, STORE_BET, STORE_BATCH, FIN
 from common.utils import store_bets, Bet
 from common.serializer import send_message_with_length
 
@@ -72,12 +73,19 @@ class Server:
         client socket will also be closed
         """
         try:
-            msg, data = receive_message(client_sock)
+            while True:
+                msg, data = receive_message(client_sock)
 
-            if msg == STORE_BET:
-                self.__handle_store_bet(client_sock, data)
+                if msg == STORE_BET:
+                    self.__handle_store_bet(client_sock, data)
+                elif msg == STORE_BATCH:
+                    self.__handle_store_batch(client_sock, data)
+                elif msg == FIN:
+                    logging.info(f"action: FIN_received | result: success")
+                    break
+
         except OSError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
+            logging.error(f"action: receive_message | result: fail | error: {e}")
         finally:
             client_sock.close()
 
@@ -90,3 +98,11 @@ class Server:
         logging.info(
             f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}"
         )
+
+    def __handle_store_batch(self, client_sock: socket.socket, batch: List[Bet]):
+        store_bets(batch)
+
+        logging.info(f"action: storing_batch | result: success | amount: {len(batch)} ")
+
+        # Send a response back to the client
+        send_message_with_length(client_sock, "ok")

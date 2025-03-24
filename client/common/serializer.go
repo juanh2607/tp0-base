@@ -38,3 +38,13 @@ func encodeBet(bet Bet) ([]byte, error) {
 
 	return buf.Bytes(), nil
 }
+
+func getFinMsg() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := binary.Write(buf, binary.BigEndian, uint8(FIN)); err != nil {
+		return nil, fmt.Errorf("error creating FIN message: %v", err)
+	}
+
+	return buf.Bytes(), nil
+}
