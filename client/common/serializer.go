@@ -11,11 +11,15 @@ import (
 func encodeBet(bet Bet) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
+	if err := binary.Write(buf, binary.BigEndian, uint8(STORE_BET)); err != nil {
+		return nil, fmt.Errorf("error writing total length: %v", err)
+	}
+
 	fields := []string{bet.Agency, bet.FirstName, bet.LastName, bet.Document, bet.Birthdate, bet.Number}
 
-	totalLength := int32(0)
+	totalLength := uint32(0)
 	for _, field := range fields {
-		totalLength += int32(4 + len(field))
+		totalLength += uint32(4 + len(field))
 	}
 
 	if err := binary.Write(buf, binary.BigEndian, totalLength); err != nil {

@@ -6,6 +6,11 @@ import (
 	"net"
 )
 
+// Message IDs
+const (
+	STORE_BET = 1
+)
+
 type Bet struct {
 	Agency    string
 	FirstName string
