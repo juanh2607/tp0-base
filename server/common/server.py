@@ -1,7 +1,7 @@
 import socket
 import logging
 import signal
-import sys
+from common.utils import Bet, store_bets
 
 
 class Server:
@@ -70,15 +70,79 @@ class Server:
         client socket will also be closed
         """
         try:
-            # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode("utf-8")
-            addr = client_sock.getpeername()
-            logging.info(
-                f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
-            )
-            # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode("utf-8"))
+            msg = self.__receive_message(client_sock)
+            if msg:
+                addr = client_sock.getpeername()
+                logging.info(
+                    f"action: receive_message | result: success | ip: {addr[0]} | msg: {msg}"
+                )
+
+                store_bets([msg])
+                # Send a response back to the client
+                client_sock.send(f"Received\n".encode("utf-8"))
+                logging.info(
+                    f"action: apuesta_almacenada | result: success | dni: {msg.document} | numero: {msg.number}"
+                )
+
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
             client_sock.close()
+
+    def __receive_message(self, client_sock: socket.socket) -> Bet:
+        """Receive and deserialize the message from the client."""
+        try:
+            # Read first int32 with total data length in bytes
+            total_length_bytes = client_sock.recv(4)
+            if not total_length_bytes:
+                return None
+
+            total_length = int.from_bytes(total_length_bytes, byteorder="big")
+
+            data: bytes = b""
+            received = 0
+
+            # Read each field as <length_field: i32><field: str>
+            while received < total_length:
+                length_bytes = client_sock.recv(4)
+                if not length_bytes:
+                    break
+
+                field_length = int.from_bytes(length_bytes, byteorder="big")
+                field_data = client_sock.recv(field_length)
+                if not field_data:
+                    break
+
+                data += length_bytes
+                data += field_data
+                received += 4 + field_length
+
+            return self.__deserialize_bet(data)
+
+        except Exception as e:
+            logging.error(f"Error while receiving and deserializing message: {e}")
+            return None
+
+    def __deserialize_bet(self, data: bytes) -> Bet:
+        fields = []
+        index = 0
+
+        while index < len(data):
+            length = int.from_bytes(data[index : index + 4], byteorder="big")
+            index += 4
+
+            field = data[index : index + length].decode("utf-8")
+            index += length
+
+            fields.append(field)
+
+        bet = Bet(
+            agency=fields[0],
+            first_name=fields[1],
+            last_name=fields[2],
+            document=fields[3],
+            birthdate=fields[4],
+            number=fields[5],
+        )
+
+        return bet

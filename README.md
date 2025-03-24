@@ -1,29 +1,23 @@
 # Enunciado
-### Ejercicio N°4:
-Modificar servidor y cliente para que ambos sistemas terminen de forma _graceful_ al recibir la signal SIGTERM. 
-Terminar la aplicación de forma _graceful_ implica que todos los _file descriptors_ 
-(entre los que se encuentran archivos, sockets, threads y procesos) deben cerrarse correctamente 
-antes que el thread de la aplicación principal muera. Loguear mensajes en el cierre de cada recurso 
-(hint: Verificar que hace el flag `-t` utilizado en el comando `docker compose down`).
+### Ejercicio N°5:
+Modificar la lógica de negocio tanto de los clientes como del servidor para nuestro nuevo caso de uso.
+
+#### Cliente
+Emulará a una _agencia de quiniela_ que participa del proyecto. Existen 5 agencias. Deberán recibir como variables de entorno los campos que representan la apuesta de una persona: nombre, apellido, DNI, nacimiento, numero apostado (en adelante 'número'). Ej.: `NOMBRE=Santiago Lionel`, `APELLIDO=Lorca`, `DOCUMENTO=30904465`, `NACIMIENTO=1999-03-17` y `NUMERO=7574` respectivamente.
+
+Los campos deben enviarse al servidor para dejar registro de la apuesta. Al recibir la confirmación del servidor se debe imprimir por log: `action: apuesta_enviada | result: success | dni: ${DNI} | numero: ${NUMERO}`.
+
+
+
+#### Servidor
+Emulará a la _central de Lotería Nacional_. Deberá recibir los campos de la cada apuesta desde los clientes y almacenar la información mediante la función `store_bet(...)` para control futuro de ganadores. La función `store_bet(...)` es provista por la cátedra y no podrá ser modificada por el alumno.
+Al persistir se debe imprimir por log: `action: apuesta_almacenada | result: success | dni: ${DNI} | numero: ${NUMERO}`.
+
+#### Comunicación:
+Se deberá implementar un módulo de comunicación entre el cliente y el servidor donde se maneje el envío y la recepción de los paquetes, el cual se espera que contemple:
+* Definición de un protocolo para el envío de los mensajes.
+* Serialización de los datos.
+* Correcta separación de responsabilidades entre modelo de dominio y capa de comunicación.
+* Correcto empleo de sockets, incluyendo manejo de errores y evitando los fenómenos conocidos como [_short read y short write_](https://cs61.seas.harvard.edu/site/2018/FileDescriptors/).
 
 # Solución
-Tanto en el cliente como en el servidor se genero una suscripción a la emisión de la señal `SIGTERM` y 
-`SIGINT`.  
-Tras la recepción de esta señal:
-* El server finaliza el loop principal, cerrando el socket con el cuál recibe nuevas conexiones. Si
-  había una conexión en proceso, se finaliza (dado que es enviar un solo mensaje).
-* El cliente cierra su socket.
-
-Ambos loggean la limpieza de recursos y el correcto cierre del proceso.
-
-```
-client1  | 2025-03-23 20:59:16 INFO     action: shutdown | result: success | client_id: 1
-client1 exited with code 0
-server   | 2025-03-23 20:59:16 INFO     action: shutdown | result: in_progress
-server   | 2025-03-23 20:59:16 INFO     action: closing_listener | result: success
-server   | 2025-03-23 20:59:16 INFO     action: shutdown | result: success
-server exited with code 0
-```
-
-El flag `-t`, `--timeout` permite especificar el tiempo de espera antes de forzar el apagado del contenedor.
-Este se encuentra en uso en el comando `make docker-compose-down`.

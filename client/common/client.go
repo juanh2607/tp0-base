@@ -1,8 +1,6 @@
 package common
 
 import (
-	"bufio"
-	"fmt"
 	"net"
 	"time"
 
@@ -52,40 +50,68 @@ func (c *Client) createClientSocket() error {
 
 // StartClientLoop Send messages to the client until some time threshold is met
 func (c *Client) StartClientLoop() {
+	c.createClientSocket()
+
+	bet := Bet{
+		Agency:    "1",
+		FirstName: "Santiago",
+		LastName:  "Lorca",
+		Document:  "30904465",
+		Birthdate: "1999-03-17",
+		Number:    "7574",
+	}
+	log.Infof("action: sending_bet | result: in_progress | bet_number: %v", bet.Number)
+
+	response, err := SendBet(c.conn, bet)
+	if err != nil {
+		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+	}
+
+	if response == "ok" {
+		log.Infof("action: apuesta_enviada | result: success | dni: %v | numero: %v", bet.Document, bet.Number)
+	} else {
+		log.Infof("action: apuesta_enviada | result: fail | response: %v", response)
+	}
+
+	c.conn.Close()
+
 	// There is an autoincremental msgID to identify every message sent
 	// Messages if the message amount threshold has not been surpassed
-	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
-		c.createClientSocket()
+	// for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
+	// 	c.createClientSocket()
 
-		// TODO: Modify the send to avoid short-write
-		fmt.Fprintf(
-			c.conn,
-			"[CLIENT %v] Message N°%v\n",
-			c.config.ID,
-			msgID,
-		)
-		msg, err := bufio.NewReader(c.conn).ReadString('\n')
-		c.conn.Close()
-		c.conn = nil
+	// 	// TODO: Modify the send to avoid short-write
+	// 	fmt.Fprintf(
+	// 		c.conn,
+	// 		"[CLIENT %v] Message N°%v\n",
+	// 		c.config.ID,
+	// 		msgID,
+	// 	)
+	// 	msg, err := bufio.NewReader(c.conn).ReadString('\n')
+	// 	c.conn.Close()
+	// 	c.conn = nil
 
-		if err != nil {
-			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return
-		}
+	// 	if err != nil {
+	// 		log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
+	// 			c.config.ID,
+	// 			err,
+	// 		)
+	// 		return
+	// 	}
 
-		log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
-			c.config.ID,
-			msg,
-		)
+	// 	log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
+	// 		c.config.ID,
+	// 		msg,
+	// 	)
 
-		// Wait a time between sending one message and the next one
-		time.Sleep(c.config.LoopPeriod)
+	// 	// Wait a time between sending one message and the next one
+	// 	time.Sleep(c.config.LoopPeriod)
 
-	}
-	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+	// }
+	// log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 }
 
 func (c *Client) Shutdown() {
