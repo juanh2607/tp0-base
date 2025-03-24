@@ -1,6 +1,7 @@
 import csv
 import datetime
 import time
+import socket
 from typing import Generator
 
 
@@ -69,3 +70,27 @@ def load_bets() -> Generator[Bet, None, None]:
         reader = csv.reader(file, quoting=csv.QUOTE_MINIMAL)
         for row in reader:
             yield Bet(row[0], row[1], row[2], row[3], row[4], row[5])
+
+
+def recv_exactly(sock: socket.socket, n: int) -> bytes:
+    """Receive exactly `n` bytes, handling short reads."""
+    data = bytearray()
+    while len(data) < n:
+        chunk = sock.recv(n - len(data))
+        if not chunk:
+            raise ConnectionError("Socket closed before receiving expected data")
+
+        data.extend(chunk)
+
+    return bytes(data)
+
+
+def send_exactly(sock: socket.socket, data: bytes):
+    """Send exactly `n` bytes, handling short writes."""
+    total_sent = 0
+    while total_sent < len(data):
+        sent = sock.send(data[total_sent:])
+        if sent == 0:
+            raise ConnectionError("Socket closed before sending all data")
+
+        total_sent += sent

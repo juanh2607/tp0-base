@@ -1,7 +1,6 @@
 import socket
-import logging
 from typing import Tuple
-from common.utils import Bet
+from common.utils import Bet, recv_exactly, send_exactly
 
 
 def deserialize_message(client_sock: socket.socket) -> Tuple[int, bytes]:
@@ -13,13 +12,13 @@ def deserialize_message(client_sock: socket.socket) -> Tuple[int, bytes]:
     Can raise exceptions
     """
     # <msg id: u8><total_length: u32>
-    msg_byte = client_sock.recv(1)
-    total_length_bytes = client_sock.recv(4)
+    msg_byte = recv_exactly(client_sock, 1)
+    total_length_bytes = recv_exactly(client_sock, 4)
 
     msg = int.from_bytes(msg_byte, byteorder="big")
     total_length = int.from_bytes(total_length_bytes, byteorder="big")
 
-    data = client_sock.recv(total_length)
+    data = recv_exactly(client_sock, total_length)
 
     return msg, data
 
@@ -47,3 +46,14 @@ def deserialize_bet(data: bytes) -> Bet:
     )
 
     return bet
+
+
+def send_message_with_length(sock: socket.socket, message: str):
+    """Send the message with the format <length: uint32><msg: str>"""
+    data = message.encode("utf-8")
+
+    length = len(data)
+    length_bytes = length.to_bytes(4, byteorder="big")
+
+    send_exactly(sock, length_bytes)
+    send_exactly(sock, data)

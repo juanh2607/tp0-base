@@ -1,7 +1,11 @@
 import socket
 import logging
 from common.utils import store_bets
-from common.serializer import deserialize_message, deserialize_bet
+from common.serializer import (
+    deserialize_message,
+    deserialize_bet,
+    send_message_with_length,
+)
 
 MESSAGE_IDS = {
     1: "STORE_BET",
@@ -36,7 +40,7 @@ def handle_store_bet(client_sock: socket.socket, data: bytes):
     store_bets([bet])
 
     # Send a response back to the client
-    client_sock.send(f"ok".encode("utf-8"))
+    send_message_with_length(client_sock, "ok")
     logging.info(
         f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}"
     )

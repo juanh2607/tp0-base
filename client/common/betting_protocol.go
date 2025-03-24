@@ -1,7 +1,7 @@
 package common
 
 import (
-	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 )
@@ -26,17 +26,22 @@ func SendBet(conn net.Conn, bet Bet) (string, error) {
 		return "", fmt.Errorf("error serializing bet: %v", err)
 	}
 
-	_, err = conn.Write(betData)
+	err = writeExactly(conn, betData)
 	if err != nil {
 		return "", fmt.Errorf("error sending bet: %v", err)
 	}
 
 	// Read server response
-	reader := new(bytes.Buffer)
-	_, err = reader.ReadFrom(conn)
+	sizeBytes, err := readExactly(conn, 4)
 	if err != nil {
-		return "", fmt.Errorf("error receiving answer: %v", err)
+		return "", fmt.Errorf("error reading message size: %v", err)
+	}
+	msgSize := int(binary.BigEndian.Uint32(sizeBytes))
+
+	msg, err := readExactly(conn, msgSize)
+	if err != nil {
+		return "", fmt.Errorf("error reading message: %v", err)
 	}
 
-	return reader.String(), nil
+	return string(msg), nil
 }
