@@ -1,5 +1,5 @@
 import socket
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
 from common.utils import Bet, recv_exactly, send_exactly
 
 
@@ -28,6 +28,7 @@ def deserialize_message(client_sock: socket.socket) -> Tuple[int, bytes]:
 
 
 def deserialize_bet(data: bytes) -> Bet:
+    """May raise exception"""
     fields = []
     index = 0
 
@@ -62,16 +63,22 @@ def send_message_with_length(sock: socket.socket, message: str):
     send_exactly(sock, data)
 
 
-def deserialize_batch(data: bytes) -> List[Bet]:
+def deserialize_batch(data: bytes) -> Tuple[List[Bet], Dict[str, Any]]:
     """
     Expects data with the following format:
     * `<total bets: uint32><length bet 1: uint32><length field1: uint32><field1: str>...`
+
+    Returns a tuple with the following format:
+    * [0]: the list of bets obtained
+    * [1]: a dictionary of errors.
     """
     index = 0
     total_bets = int.from_bytes(data[index : index + 4], byteorder="big")
     index += 4
 
     bets: List[Bet] = []
+    errors = {}
+    error_count = 0
 
     for _ in range(0, total_bets):
         bet_size = int.from_bytes(data[index : index + 4], byteorder="big")
@@ -80,7 +87,14 @@ def deserialize_batch(data: bytes) -> List[Bet]:
         bet_data = data[index : index + bet_size]
         index += bet_size
 
-        bet = deserialize_bet(bet_data)
-        bets.append(bet)
+        try:
+            bet = deserialize_bet(bet_data)
+            bets.append(bet)
+        except Exception:
+            error_count += 1
+            pass
 
-    return bets
+    if error_count > 0:
+        errors["bets_with_errors"] = error_count
+
+    return bets, errors

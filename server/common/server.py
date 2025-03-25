@@ -1,7 +1,7 @@
 import socket
 import logging
 import signal
-from typing import List
+from typing import List, Dict, Any
 from common.betting_protocol import receive_message, STORE_BET, STORE_BATCH, FIN
 from common.utils import store_bets, Bet
 from common.serializer import send_message_with_length
@@ -74,12 +74,12 @@ class Server:
         """
         try:
             while True:
-                msg, data = receive_message(client_sock)
+                msg, data, err = receive_message(client_sock)
 
                 if msg == STORE_BET:
                     self.__handle_store_bet(client_sock, data)
                 elif msg == STORE_BATCH:
-                    self.__handle_store_batch(client_sock, data)
+                    self.__handle_store_batch(client_sock, data, err)
                 elif msg == FIN:
                     logging.info(f"action: FIN_received | result: success")
                     break
@@ -99,8 +99,15 @@ class Server:
             f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}"
         )
 
-    def __handle_store_batch(self, client_sock: socket.socket, batch: List[Bet]):
+    def __handle_store_batch(
+        self, client_sock: socket.socket, batch: List[Bet], err: Dict[str, Any]
+    ):
         store_bets(batch)
+
+        if err:
+            logging.info(
+                f"action: apuesta_recibida | result: failed | cantidad: {len(batch)}"
+            )
 
         logging.info(
             f"action: apuesta_recibida | result: success | cantidad: {len(batch)}"

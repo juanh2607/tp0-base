@@ -1,6 +1,6 @@
 import socket
 import logging
-from typing import Tuple, Any
+from typing import Tuple, Any, Dict
 from common.serializer import (
     deserialize_message,
     deserialize_bet,
@@ -14,11 +14,12 @@ FIN = 3
 MESSAGE_IDS = {STORE_BET: "STORE_BET", STORE_BATCH: "STORE_BATCH", FIN: "FIN"}
 
 
-def receive_message(client_sock: socket.socket) -> Tuple[int, Any]:
+def receive_message(client_sock: socket.socket) -> Tuple[int, Any, Dict[str, Any]]:
     """
     Returns a tuple with:
         * [0]: the msg id
         * [1]: the data, if any, that comes with the message
+        * [2]: a dictionary with errors
     """
     try:
         msg, data = deserialize_message(client_sock)
@@ -29,11 +30,12 @@ def receive_message(client_sock: socket.socket) -> Tuple[int, Any]:
         )
 
         if msg == STORE_BET:
-            return msg, deserialize_bet(data)
+            return msg, deserialize_bet(data), {}
         elif msg == STORE_BATCH:
-            return msg, deserialize_batch(data)
+            data, err = deserialize_batch(data)
+            return msg, data, err
         elif msg == FIN:
-            return msg, None
+            return msg, None, {}
         else:
             raise ValueError(f"Unknown message received: {msg}")
 
