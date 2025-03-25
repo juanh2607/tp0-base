@@ -62,6 +62,13 @@ func InitConfig() (*viper.Viper, error) {
 		return nil, errors.Wrapf(err, "Could not parse CLI_LOOP_PERIOD env var as time.Duration.")
 	}
 
+	configMaxAmount := v.GetInt("batch.maxAmount")
+
+	if configMaxAmount > 100 {
+		fmt.Printf("Batch maxAmount cannot surpass 100")
+		v.Set("batch.maxAmount", 100)
+	}
+
 	return v, nil
 }
 
