@@ -11,12 +11,12 @@ def deserialize_message(client_sock: socket.socket) -> Tuple[int, bytes]:
 
     Can raise exceptions
     """
-    from common.betting_protocol import FIN
+    from common.betting_protocol import FIN, END_BETS
 
     # <msg id: u8><total_length: u32>
     msg_byte = recv_exactly(client_sock, 1)
     msg = int.from_bytes(msg_byte, byteorder="big")
-    if msg == FIN:
+    if msg in (FIN, END_BETS):
         return msg, None
 
     total_length_bytes = recv_exactly(client_sock, 4)

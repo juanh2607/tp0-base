@@ -10,8 +10,14 @@ from common.serializer import (
 STORE_BET = 1
 STORE_BATCH = 2
 FIN = 3
+END_BETS = 4
 
-MESSAGE_IDS = {STORE_BET: "STORE_BET", STORE_BATCH: "STORE_BATCH", FIN: "FIN"}
+MESSAGE_IDS = {
+    STORE_BET: "STORE_BET",
+    STORE_BATCH: "STORE_BATCH",
+    FIN: "FIN",
+    END_BETS: "END_BETS",
+}
 
 
 def receive_message(client_sock: socket.socket) -> Tuple[int, Any, Dict[str, Any]]:
@@ -23,7 +29,6 @@ def receive_message(client_sock: socket.socket) -> Tuple[int, Any, Dict[str, Any
     """
     try:
         msg, data = deserialize_message(client_sock)
-
         addr = client_sock.getpeername()
         logging.info(
             f"action: receive_message | result: success | ip: {addr[0]} | msg: {MESSAGE_IDS[msg]}"
@@ -36,9 +41,14 @@ def receive_message(client_sock: socket.socket) -> Tuple[int, Any, Dict[str, Any
             return msg, data, err
         elif msg == FIN:
             return msg, None, {}
+        elif msg == END_BETS:
+            return msg, None, {}
         else:
             raise ValueError(f"Unknown message received: {msg}")
 
+    except ValueError as e:
+        logging.error(e)
+        return None, None, {}
     except Exception as e:
         logging.error(f"Error while receiving and deserializing message: {e}")
-        return None
+        return None, None, {}

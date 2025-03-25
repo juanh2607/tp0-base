@@ -11,6 +11,7 @@ const (
 	STORE_BET   = 1
 	STORE_BATCH = 2
 	FIN         = 3
+	END_BETS    = 4
 )
 
 type Bet struct {
@@ -83,6 +84,35 @@ func SendFin(conn net.Conn) error {
 
 	if err := writeExactly(conn, msg); err != nil {
 		return fmt.Errorf("error sending FIN message: %v", err)
+	}
+
+	return nil
+}
+
+// Send END_BETS to server and wait for result
+func SendEndBets(conn net.Conn) error {
+	msg, err := getEndBetsMsg()
+	if err != nil {
+		return fmt.Errorf("error creating END_BETS message: %v", err)
+	}
+
+	if err := writeExactly(conn, msg); err != nil {
+		return fmt.Errorf("error sending END_BETS message: %v", err)
+	}
+
+	log.Info("action: send_END_BETS | result: success")
+	log.Info("action: consulta_ganadores | result: in_progress")
+
+	// Read server response
+	sizeBytes, err := readExactly(conn, 4)
+	if err != nil {
+		return fmt.Errorf("error reading message size: %v", err)
+	}
+	msgSize := int(binary.BigEndian.Uint32(sizeBytes))
+
+	msg, err = readExactly(conn, msgSize)
+	if err != nil {
+		return fmt.Errorf("error reading message: %v", err)
 	}
 
 	return nil

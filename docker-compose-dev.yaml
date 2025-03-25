@@ -7,6 +7,7 @@ services:
     environment:
       # Ensure python output is sent immediately (for logging)
       - PYTHONUNBUFFERED=1
+      - CLIENTS=5
     networks:
       - testing_net
     volumes:
@@ -27,6 +28,66 @@ services:
       # Mount config.yaml from host machine to container
       - ./client/config.yaml:/config.yaml
       - ./.data/agency-1.csv:/agency.csv
+
+  client2:
+    container_name: client2
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=2
+    networks:
+      - testing_net
+    depends_on:
+      - server
+    volumes:
+      # Mount config.yaml from host machine to container
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-2.csv:/agency.csv
+
+  client3:
+    container_name: client3
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=3
+    networks:
+      - testing_net
+    depends_on:
+      - server
+    volumes:
+      # Mount config.yaml from host machine to container
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-3.csv:/agency.csv
+
+  client4:
+    container_name: client4
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=4
+    networks:
+      - testing_net
+    depends_on:
+      - server
+    volumes:
+      # Mount config.yaml from host machine to container
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-4.csv:/agency.csv
+
+  client5:
+    container_name: client5
+    image: client:latest
+    entrypoint: /client
+    environment:
+      - CLI_ID=5
+    networks:
+      - testing_net
+    depends_on:
+      - server
+    volumes:
+      # Mount config.yaml from host machine to container
+      - ./client/config.yaml:/config.yaml
+      - ./.data/agency-5.csv:/agency.csv
 
 networks:
   testing_net: # Isolated network that allow containers to communicate

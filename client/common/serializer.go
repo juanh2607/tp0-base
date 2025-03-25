@@ -92,3 +92,13 @@ func getFinMsg() ([]byte, error) {
 
 	return buf.Bytes(), nil
 }
+
+func getEndBetsMsg() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	if err := binary.Write(buf, binary.BigEndian, uint8(END_BETS)); err != nil {
+		return nil, fmt.Errorf("error creating END_BETS message: %v", err)
+	}
+
+	return buf.Bytes(), nil
+}

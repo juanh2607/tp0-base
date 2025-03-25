@@ -4,7 +4,7 @@ import sys
 output_file = sys.argv[1]
 num_clients = int(sys.argv[2])
 
-docker_compose = """name: tp0
+docker_compose = f"""name: tp0
 services:
   server:
     container_name: server
@@ -13,6 +13,7 @@ services:
     environment:
       # Ensure python output is sent immediately (for logging)
       - PYTHONUNBUFFERED=1
+      - CLIENTS={num_clients}
     networks:
       - testing_net
     volumes:

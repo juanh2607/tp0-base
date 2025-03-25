@@ -2,18 +2,39 @@ import socket
 import logging
 import signal
 from typing import List, Dict, Any
-from common.betting_protocol import receive_message, STORE_BET, STORE_BATCH, FIN
+from common.betting_protocol import (
+    receive_message,
+    STORE_BET,
+    STORE_BATCH,
+    FIN,
+    END_BETS,
+)
 from common.utils import store_bets, Bet
 from common.serializer import send_message_with_length
 
 
 class Server:
-    def __init__(self, port: int, listen_backlog: int):
+    def __init__(
+        self,
+        port: int,
+        listen_backlog: int,
+        clients: int,
+    ):
+        """
+        Args:
+            `port`: where the server will be listening for new connections.
+            `listen_backlog`: max amount of pending connections before being accepted.
+            `clients`: the amount of clients the server is expected to handle.
+        """
+
         # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
         self._running: bool = True
+
+        assert 0 < clients and clients <= 5
+        self._clients = clients
 
         # Signal handlers
         # SIGTERM is the standard signal for requesting a process to terminate gracefully.
@@ -41,11 +62,15 @@ class Server:
         communication with a client. After client with communucation
         finishes, servers starts to accept new connections again
         """
+        clients_received = 0
 
-        while self._running:
+        while self._running and clients_received < self._clients:
             client_sock = self.__accept_new_connection()
             if client_sock:
+                clients_received += 1
                 self.__handle_client_connection(client_sock)
+
+        logging.info("action: sorteo | result: success")
 
     def __accept_new_connection(self) -> socket.socket:
         """
@@ -83,11 +108,15 @@ class Server:
                 elif msg == FIN:
                     logging.info(f"action: FIN_received | result: success")
                     break
-
+                elif msg == END_BETS:
+                    logging.info(f"action: END_BETS_received | result: success")
+                    break
+                else:
+                    raise ValueError(f"Unknown message received: {msg}")
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
-        finally:
-            client_sock.close()
+        # finally:
+        #     client_sock.close()
 
     def __handle_store_bet(self, client_sock: socket.socket, bet: Bet):
         """Stores the bets and sends a response to the client if successful"""
