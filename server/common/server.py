@@ -37,6 +37,8 @@ class Server:
         assert 0 < clients and clients <= 5
         self._clients = clients
 
+        self._clients_sockets: Dict[int, socket.socket] = {}
+
         # Signal handlers
         # SIGTERM is the standard signal for requesting a process to terminate gracefully.
         signal.signal(signal.SIGTERM, self.handle_signal)
@@ -72,6 +74,18 @@ class Server:
                 self.__handle_client_connection(client_sock)
 
         logging.info("action: sorteo | result: success")
+
+        for agency_id, client_sock in self._clients_sockets.items():
+            try:
+                send_message_with_length(client_sock, "ok")
+                logging.info(
+                    f"action: send_ok | result: success | agency_id: {agency_id}"
+                )
+                client_sock.close()
+            except OSError as e:
+                logging.error(
+                    f"action: close_socket | result: fail | agency_id: {agency_id} | error: {e}"
+                )
 
     def __accept_new_connection(self) -> socket.socket:
         """
@@ -111,16 +125,11 @@ class Server:
                 elif msg == END_BETS:
                     break
                 elif msg == SYN:
-                    logging.info(
-                        f"action: SYN_received | result: success | agency_id: {data}"
-                    )
-                    send_message_with_length(client_sock, "ok")
+                    self.__handle_syn(client_sock, data)
                 else:
                     raise ValueError(f"Unknown message received: {msg}")
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
-        # finally:
-        #     client_sock.close()
 
     def __handle_store_bet(self, client_sock: socket.socket, bet: Bet):
         """Stores the bets and sends a response to the client if successful"""
@@ -147,4 +156,12 @@ class Server:
         )
 
         # Send a response back to the client
+        send_message_with_length(client_sock, "ok")
+
+    def __handle_syn(self, client_sock: socket.socket, agency_id: int):
+        """Saves the conection with the client and responds with an 'ok'"""
+        self._clients_sockets[agency_id] = client_sock
+
+        logging.info(f"action: SYN_received | result: success | agency_id: {agency_id}")
+
         send_message_with_length(client_sock, "ok")

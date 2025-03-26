@@ -128,8 +128,8 @@ func (c *Client) StartClientLoop() {
 
 	SendEndBets(c.conn)
 
-	log.Infof("action: send_FIN | result: success | client_id: %v", c.config.ID)
-	SendFin(c.conn)
+	// log.Infof("action: send_FIN | result: success | client_id: %v", c.config.ID)
+	// SendFin(c.conn)
 
 	c.conn.Close()
 	c.conn = nil

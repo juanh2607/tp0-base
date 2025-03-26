@@ -116,7 +116,11 @@ func SendEndBets(conn net.Conn) error {
 		return fmt.Errorf("error reading message: %v", err)
 	}
 
-	return nil
+	if string(msg) == "ok" {
+		return nil
+	} else {
+		return fmt.Errorf("error with END_BETS message: %v", msg)
+	}
 }
 
 // Send SYN msg with the agency number
