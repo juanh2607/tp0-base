@@ -168,7 +168,7 @@ class Server:
 
         for agency_id, client_sock in self._clients_sockets.items():
             try:
-                send_winners(client_sock, self._winners[agency_id])
+                send_winners(client_sock, self._winners.get(agency_id, []))
                 client_sock.close()
             except OSError as e:
                 logging.error(
