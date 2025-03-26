@@ -13,6 +13,13 @@ Las funciones `load_bets(...)` y `has_won(...)` son provistas por la cátedra y 
 No es correcto realizar un broadcast de todos los ganadores hacia todas las agencias, se espera que se informen los DNIs ganadores que correspondan a cada una de ellas.
 
 # Solución [WIP]
+Ahora se setea la variable de entorno CLIENTS al crear el compose file usando `generar-compose.sh`.
+Esto permite al servidor saber cuando comenzar el sorteo (recibió todas las apuestas de todas las agencias).
+
+Para saber con que agencia se está comunicando, se creo el mensaje `SYN` que contiene el ID de la agencia.
+El servidor contesta `ok` y el cliente empieza el envío de batches.
+
+----------------------------------------------------------------------------------------------------
 
 El servidor va a tener una variable de entorno con la cantidad de clientes.
 

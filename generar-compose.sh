@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# ./generar-compose.sh docker-compose-dev.yaml 1
+
 # $# is the number of arguments received
 if [ $# -ne 2 ]; then
     # $0 is the name of the script

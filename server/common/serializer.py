@@ -11,13 +11,18 @@ def deserialize_message(client_sock: socket.socket) -> Tuple[int, bytes]:
 
     Can raise exceptions
     """
-    from common.betting_protocol import FIN, END_BETS
+    from common.betting_protocol import FIN, END_BETS, SYN
 
     # <msg id: u8><total_length: u32>
     msg_byte = recv_exactly(client_sock, 1)
     msg = int.from_bytes(msg_byte, byteorder="big")
-    if msg in (FIN, END_BETS):
+
+    if msg in (FIN, END_BETS):  # <msg id: u8>
         return msg, None
+
+    if msg == SYN:  # <msg id: u8><agency id: u8>
+        data = recv_exactly(client_sock, 1)
+        return msg, data
 
     total_length_bytes = recv_exactly(client_sock, 4)
     total_length = int.from_bytes(total_length_bytes, byteorder="big")
@@ -98,3 +103,8 @@ def deserialize_batch(data: bytes) -> Tuple[List[Bet], Dict[str, Any]]:
         errors["bets_with_errors"] = error_count
 
     return bets, errors
+
+
+def deserialize_syn(data: bytes) -> int:
+    """SYN messages come with the agency id (uint8)"""
+    return int.from_bytes(data[:1], byteorder="big")

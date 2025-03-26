@@ -12,6 +12,7 @@ const (
 	STORE_BATCH = 2
 	FIN         = 3
 	END_BETS    = 4
+	SYN         = 5
 )
 
 type Bet struct {
@@ -116,4 +117,34 @@ func SendEndBets(conn net.Conn) error {
 	}
 
 	return nil
+}
+
+// Send SYN msg with the agency number
+func SendSyn(conn net.Conn, agency_number string) error {
+	msg, err := getSynMsg(agency_number)
+	if err != nil {
+		return fmt.Errorf("error creating SYN message: %v", err)
+	}
+
+	if err := writeExactly(conn, msg); err != nil {
+		return fmt.Errorf("error sending SYN message: %v", err)
+	}
+
+	// Read server response
+	sizeBytes, err := readExactly(conn, 4)
+	if err != nil {
+		return fmt.Errorf("error reading message size: %v", err)
+	}
+	msgSize := int(binary.BigEndian.Uint32(sizeBytes))
+
+	msg, err = readExactly(conn, msgSize)
+	if err != nil {
+		return fmt.Errorf("error reading message: %v", err)
+	}
+
+	if string(msg) == "ok" {
+		return nil
+	} else {
+		return fmt.Errorf("error with SYN message: %v", msg)
+	}
 }

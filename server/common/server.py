@@ -8,6 +8,7 @@ from common.betting_protocol import (
     STORE_BATCH,
     FIN,
     END_BETS,
+    SYN,
 )
 from common.utils import store_bets, Bet
 from common.serializer import send_message_with_length
@@ -106,11 +107,14 @@ class Server:
                 elif msg == STORE_BATCH:
                     self.__handle_store_batch(client_sock, data, err)
                 elif msg == FIN:
-                    logging.info(f"action: FIN_received | result: success")
                     break
                 elif msg == END_BETS:
-                    logging.info(f"action: END_BETS_received | result: success")
                     break
+                elif msg == SYN:
+                    logging.info(
+                        f"action: SYN_received | result: success | agency_id: {data}"
+                    )
+                    send_message_with_length(client_sock, "ok")
                 else:
                     raise ValueError(f"Unknown message received: {msg}")
         except OSError as e:

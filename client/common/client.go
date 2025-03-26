@@ -72,6 +72,11 @@ func (c *Client) StartClientLoop() {
 
 	c.createClientSocket()
 
+	if err := SendSyn(c.conn, c.config.ID); err != nil {
+		log.Errorf("action: SYN_msg | result: fail | error: %v", err)
+	}
+	log.Infof("action: send_SYN | result: success")
+
 	var batch []Bet
 	for {
 		record, err := reader.Read()
@@ -111,7 +116,14 @@ func (c *Client) StartClientLoop() {
 	}
 
 	if len(batch) > 0 {
-		SendBatch(c.conn, batch)
+		response, err := SendBatch(c.conn, batch)
+		if err != nil {
+			log.Errorf("action: send_batch | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return
+		}
+
+		log.Infof("action: send_batch | result: success | client_id: %v | batch_size: %v | response: %v",
+			c.config.ID, len(batch), response)
 	}
 
 	SendEndBets(c.conn)

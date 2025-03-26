@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"strconv"
 )
 
 // Encodes a bet in binary with the following format:
@@ -98,6 +99,25 @@ func getEndBetsMsg() ([]byte, error) {
 
 	if err := binary.Write(buf, binary.BigEndian, uint8(END_BETS)); err != nil {
 		return nil, fmt.Errorf("error creating END_BETS message: %v", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+func getSynMsg(agency_number string) ([]byte, error) {
+	id, err := strconv.ParseUint(agency_number, 10, 8) // Base 10, 8 bits
+	if err != nil {
+		return nil, fmt.Errorf("error creating SYN message: %v", err)
+	}
+
+	buf := new(bytes.Buffer)
+
+	if err := binary.Write(buf, binary.BigEndian, uint8(SYN)); err != nil {
+		return nil, fmt.Errorf("error creating SYN message: %v", err)
+	}
+
+	if err := binary.Write(buf, binary.BigEndian, uint8(id)); err != nil {
+		return nil, fmt.Errorf("error writing agency number: %v", err)
 	}
 
 	return buf.Bytes(), nil
