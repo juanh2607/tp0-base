@@ -4,13 +4,14 @@ import signal
 from typing import List, Dict, Any
 from common.betting_protocol import (
     receive_message,
+    send_winners,
     STORE_BET,
     STORE_BATCH,
     FIN,
     END_BETS,
     SYN,
 )
-from common.utils import store_bets, Bet
+from common.utils import store_bets, Bet, load_bets, has_won
 from common.serializer import send_message_with_length
 
 
@@ -36,8 +37,12 @@ class Server:
 
         assert 0 < clients and clients <= 5
         self._clients = clients
+        self.__ended_clients = 0
 
         self._clients_sockets: Dict[int, socket.socket] = {}
+
+        # Key: Agency, Value: List of DNIs of the winners
+        self._winners: Dict[int, List[str]] = {}
 
         # Signal handlers
         # SIGTERM is the standard signal for requesting a process to terminate gracefully.
@@ -58,13 +63,6 @@ class Server:
             logging.info("action: shutdown | result: fail")
 
     def run(self):
-        """
-        Dummy Server loop
-
-        Server that accept a new connections and establishes a
-        communication with a client. After client with communucation
-        finishes, servers starts to accept new connections again
-        """
         clients_received = 0
 
         while self._running and clients_received < self._clients:
@@ -72,20 +70,6 @@ class Server:
             if client_sock:
                 clients_received += 1
                 self.__handle_client_connection(client_sock)
-
-        logging.info("action: sorteo | result: success")
-
-        for agency_id, client_sock in self._clients_sockets.items():
-            try:
-                send_message_with_length(client_sock, "ok")
-                logging.info(
-                    f"action: send_ok | result: success | agency_id: {agency_id}"
-                )
-                client_sock.close()
-            except OSError as e:
-                logging.error(
-                    f"action: close_socket | result: fail | agency_id: {agency_id} | error: {e}"
-                )
 
     def __accept_new_connection(self) -> socket.socket:
         """
@@ -123,6 +107,7 @@ class Server:
                 elif msg == FIN:
                     break
                 elif msg == END_BETS:
+                    self.__handle_end_bets()
                     break
                 elif msg == SYN:
                     self.__handle_syn(client_sock, data)
@@ -165,3 +150,27 @@ class Server:
         logging.info(f"action: SYN_received | result: success | agency_id: {agency_id}")
 
         send_message_with_length(client_sock, "ok")
+
+    def __handle_end_bets(self):
+        self.__ended_clients += 1
+        if self.__ended_clients == self._clients:
+            self.__run_lottery()
+
+    def __run_lottery(self):
+        logging.info("action: sorteo | result: success")
+
+        for bet in load_bets():
+            if has_won(bet):
+                if bet.agency not in self._winners:
+                    self._winners[bet.agency] = []
+
+                self._winners[bet.agency].append(bet.document)
+
+        for agency_id, client_sock in self._clients_sockets.items():
+            try:
+                send_winners(client_sock, self._winners[agency_id])
+                client_sock.close()
+            except OSError as e:
+                logging.error(
+                    f"action: close_socket | result: fail | agency_id: {agency_id} | error: {e}"
+                )

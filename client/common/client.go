@@ -126,10 +126,12 @@ func (c *Client) StartClientLoop() {
 			c.config.ID, len(batch), response)
 	}
 
-	SendEndBets(c.conn)
-
-	// log.Infof("action: send_FIN | result: success | client_id: %v", c.config.ID)
-	// SendFin(c.conn)
+	winners, err := SendEndBetsAndWait(c.conn)
+	if err != nil {
+		log.Errorf("action: consulta_ganadores | result: fail | error: %v", err)
+	} else {
+		log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", winners)
+	}
 
 	c.conn.Close()
 	c.conn = nil

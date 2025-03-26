@@ -1,11 +1,12 @@
 import socket
 import logging
-from typing import Tuple, Any, Dict
+from typing import Tuple, Any, Dict, List
 from common.serializer import (
     deserialize_message,
     deserialize_bet,
     deserialize_batch,
     deserialize_syn,
+    send_message_with_length,
 )
 
 STORE_BET = 1
@@ -57,3 +58,8 @@ def receive_message(client_sock: socket.socket) -> Tuple[int, Any, Dict[str, Any
     except Exception as e:
         logging.error(f"Error while receiving and deserializing message: {e}")
         return None, None, {}
+
+
+def send_winners(client_sock: socket.socket, winners: List[str]):
+    winners_str = ";".join(winners) if winners else ""
+    send_message_with_length(client_sock, winners_str)

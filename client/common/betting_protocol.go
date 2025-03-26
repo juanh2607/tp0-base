@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 )
 
 // Message IDs
@@ -91,36 +92,25 @@ func SendFin(conn net.Conn) error {
 }
 
 // Send END_BETS to server and wait for result
-func SendEndBets(conn net.Conn) error {
+func SendEndBetsAndWait(conn net.Conn) (int, error) {
 	msg, err := getEndBetsMsg()
 	if err != nil {
-		return fmt.Errorf("error creating END_BETS message: %v", err)
+		return 0, fmt.Errorf("error creating END_BETS message: %v", err)
 	}
 
 	if err := writeExactly(conn, msg); err != nil {
-		return fmt.Errorf("error sending END_BETS message: %v", err)
+		return 0, fmt.Errorf("error sending END_BETS message: %v", err)
 	}
 
 	log.Info("action: send_END_BETS | result: success")
 	log.Info("action: consulta_ganadores | result: in_progress")
 
-	// Read server response
-	sizeBytes, err := readExactly(conn, 4)
+	winners, err := WaitForResults(conn)
 	if err != nil {
-		return fmt.Errorf("error reading message size: %v", err)
-	}
-	msgSize := int(binary.BigEndian.Uint32(sizeBytes))
-
-	msg, err = readExactly(conn, msgSize)
-	if err != nil {
-		return fmt.Errorf("error reading message: %v", err)
+		return 0, fmt.Errorf("error waiting for results: %v", err)
 	}
 
-	if string(msg) == "ok" {
-		return nil
-	} else {
-		return fmt.Errorf("error with END_BETS message: %v", msg)
-	}
+	return winners, nil
 }
 
 // Send SYN msg with the agency number
@@ -151,4 +141,26 @@ func SendSyn(conn net.Conn, agency_number string) error {
 	} else {
 		return fmt.Errorf("error with SYN message: %v", msg)
 	}
+}
+
+func WaitForResults(conn net.Conn) (int, error) {
+	sizeBytes, err := readExactly(conn, 4)
+	if err != nil {
+		return 0, fmt.Errorf("error reading message size: %v", err)
+	}
+	msgSize := int(binary.BigEndian.Uint32(sizeBytes))
+
+	msg, err := readExactly(conn, msgSize)
+	if err != nil {
+		return 0, fmt.Errorf("error reading message: %v", err)
+	}
+
+	result := string(msg)
+	if result == "" {
+		return 0, nil
+	}
+
+	// Count winners
+	winners := strings.Split(result, ";")
+	return len(winners), nil
 }
