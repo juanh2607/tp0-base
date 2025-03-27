@@ -57,4 +57,7 @@ Luego:
 `make docker-compose-logs`
 `make docker-compose-down`
 
-El tamaño de los batchs es configurable en `client/config.yaml`. No se permite exceder el valor 100.
+El tamaño de los batchs es configurable en `client/config.yaml`. No se permite exceder el valor 110.
+Este valor se determino haciendo un apróximado de cuantas entradas se necesitan para obtener un batch de 8kb.
+Tomando el primer ejemplo `Santiago Lionel,Lorca,30904465,1999-03-17,2201`, este ocuparía: 4 + 15 + 4 + 5 + 4 + 8 + 4 + 10 + 4 + 4 = 62 bytes. 
+8096 / 62 = 130, por lo que siendo conservador, 100 es un límite apropiado.
