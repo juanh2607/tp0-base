@@ -59,5 +59,9 @@ Luego:
 
 El tamaño de los batchs es configurable en `client/config.yaml`. No se permite exceder el valor 110.
 Este valor se determino haciendo un apróximado de cuantas entradas se necesitan para obtener un batch de 8kb.
-Tomando el primer ejemplo `Santiago Lionel,Lorca,30904465,1999-03-17,2201`, este ocuparía: 4 + 15 + 4 + 5 + 4 + 8 + 4 + 10 + 4 + 4 = 62 bytes. 
-8096 / 62 = 130, por lo que siendo conservador, 100 es un límite apropiado.
+Tomando el primer ejemplo `Santiago Lionel,Lorca,30904465,1999-03-17,2201`, este ocuparía: 4 + 4 + 15 + 4 + 5 + 4 + 8 + 4 + 10 + 4 + 4 = 66 bytes. 
+8096 / 66 ~= 122, por lo que siendo conservador, 100 es un límite apropiado.
+
+En retrospectiva, de esos 62 bytes, 20 son indicando la longitud de los campos, lo cuál si bien es más seguro (el string puede contener cualquier caracter y no fallaría), con leer como una entrada de csv y separar los valores por coma en el servidor hubiese alcanzado y es más eficiente.
+
+Es decir, el cliente enviaría la apuesta con el formato `<length: uint32><Santiago Lionel,Lorca,30904465,1999-03-17,2201>`, con un total de 50 bytes
