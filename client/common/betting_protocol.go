@@ -160,6 +160,7 @@ func WaitForResults(conn net.Conn) (int, error) {
 		return 0, nil
 	}
 
+	log.Infof("action: receive_winners | result: success | winners: %v", strings.Split(result, ";"))
 	// Count winners
 	winners := strings.Split(result, ";")
 	return len(winners), nil

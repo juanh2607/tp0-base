@@ -1,7 +1,7 @@
 import socket
 import logging
 import signal
-import threading
+import multiprocessing
 from typing import List, Dict, Any
 from common.betting_protocol import (
     receive_message,
@@ -38,21 +38,30 @@ class Server:
 
         assert 0 < clients and clients <= 5
         self._clients = clients
-        self.__ended_clients = 0
+        self._ended_clients = multiprocessing.Value("i", 0)
 
-        self._clients_sockets: Dict[int, socket.socket] = {}
+        # Key: Agency, Value: socket communicating with that agency
+        self._clients_sockets = multiprocessing.Manager().dict()
 
         # Key: Agency, Value: List of DNIs of the winners
-        self._winners: Dict[int, List[str]] = {}
+        manager = multiprocessing.Manager()
+        self._winners = manager.dict()
+        for i in range(1, self._clients + 1):
+            self._winners[i] = manager.list()
 
         # Lock used to protect the betting file from concurrent access
-        self._bets_file_lock = threading.Lock()
+        self._bets_file_lock = multiprocessing.Lock()
+
+        self._ended_clients_lock = multiprocessing.Lock()
+
+        self._lottery_runned = multiprocessing.Value("b", False)
 
         # Signal handlers
         # SIGTERM is the standard signal for requesting a process to terminate gracefully.
         signal.signal(signal.SIGTERM, self.handle_signal)
         # SIGINT is the signal received when the user presses `CTRL + C` in the terminal.
         signal.signal(signal.SIGINT, self.handle_signal)
+        self._processes = []
 
     def handle_signal(self, signum, frame):
         """Handle termination signals for graceful shutdown"""
@@ -66,6 +75,18 @@ class Server:
                 logging.info(
                     f"action: closing_socket | agency_id: {agency_id} | result: success"
                 )
+
+            for process in self._processes:
+                logging.info(
+                    f"action: terminating_process | result: in_progress | pid: {process.pid}"
+                )
+                process.terminate()  # Send signal to end process
+
+            for process in self._processes:
+                process.join()  # Wait for the process to end
+
+            logging.info("action: terminating_processes | result: success")
+
             logging.info("action: shutdown | result: success")
         except OSError as e:
             logging.info(f"action: closing_listener | result: fail | error: {e}")
@@ -76,11 +97,11 @@ class Server:
             try:
                 client_sock = self.__accept_new_connection()
                 if client_sock:
-                    threading.Thread(
-                        target=self.__handle_client_connection,
-                        args=(client_sock,),
-                        daemon=True,  # Wait for threads to close when program ends
-                    ).start()
+                    process = multiprocessing.Process(
+                        target=self.__handle_client_connection, args=(client_sock,)
+                    )
+                    process.start()
+                    self._processes.append(process)
             except Exception as e:
                 logging.error(f"Error accepting new connection: {e}")
 
@@ -128,6 +149,8 @@ class Server:
                     raise ValueError(f"Unknown message received: {msg}")
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
+        finally:
+            client_sock.close()
 
     def __handle_store_bet(self, client_sock: socket.socket, bet: Bet):
         """Stores the bets and sends a response to the client if successful"""
@@ -166,28 +189,32 @@ class Server:
         send_message_with_length(client_sock, "ok")
 
     def __handle_end_bets(self):
-        self.__ended_clients += 1
-        if self.__ended_clients == self._clients:
+        with self._ended_clients_lock:
+            self._ended_clients.value += 1
+
+        if self._ended_clients.value == self._clients:
             self.__run_lottery()
 
     def __run_lottery(self):
         logging.info("action: sorteo | result: success")
 
         with self._bets_file_lock:
-            for bet in load_bets():
-                if has_won(bet):
-                    if bet.agency not in self._winners:
-                        self._winners[bet.agency] = []
+            if not self._lottery_runned.value:
+                for bet in load_bets():
+                    if has_won(bet):
+                        self._winners[bet.agency].append(bet.document)
 
-                    self._winners[bet.agency].append(bet.document)
+                for agency_id, client_sock in self._clients_sockets.items():
+                    try:
+                        send_winners(client_sock, self._winners.get(agency_id, []))
+                        client_sock.close()
+                        logging.info(
+                            f"action: closing_socket | result: success | agency_id: {agency_id}"
+                        )
+                    except OSError as e:
+                        logging.error(
+                            f"action: close_socket | result: fail | agency_id: {agency_id} | error: {e}"
+                        )
 
-        for agency_id, client_sock in self._clients_sockets.items():
-            try:
-                send_winners(client_sock, self._winners.get(agency_id, []))
-                client_sock.close()
-            except OSError as e:
-                logging.error(
-                    f"action: close_socket | result: fail | agency_id: {agency_id} | error: {e}"
-                )
-
-        self._clients_sockets = {}
+                self._clients_sockets.clear()
+                self._lottery_runned.value = True
