@@ -1,6 +1,7 @@
 import socket
 import logging
 import signal
+import threading
 from typing import List, Dict, Any
 from common.betting_protocol import (
     receive_message,
@@ -44,6 +45,9 @@ class Server:
         # Key: Agency, Value: List of DNIs of the winners
         self._winners: Dict[int, List[str]] = {}
 
+        # Lock used to protect the betting file from concurrent access
+        self._bets_file_lock = threading.Lock()
+
         # Signal handlers
         # SIGTERM is the standard signal for requesting a process to terminate gracefully.
         signal.signal(signal.SIGTERM, self.handle_signal)
@@ -57,19 +61,28 @@ class Server:
         try:
             self._server_socket.close()
             logging.info("action: closing_listener | result: success")
+            for agency_id, client_sock in self._clients_sockets.items():
+                client_sock.close()
+                logging.info(
+                    f"action: closing_socket | agency_id: {agency_id} | result: success"
+                )
             logging.info("action: shutdown | result: success")
         except OSError as e:
             logging.info(f"action: closing_listener | result: fail | error: {e}")
             logging.info("action: shutdown | result: fail")
 
     def run(self):
-        clients_received = 0
-
-        while self._running and clients_received < self._clients:
-            client_sock = self.__accept_new_connection()
-            if client_sock:
-                clients_received += 1
-                self.__handle_client_connection(client_sock)
+        while self._running:
+            try:
+                client_sock = self.__accept_new_connection()
+                if client_sock:
+                    threading.Thread(
+                        target=self.__handle_client_connection,
+                        args=(client_sock,),
+                        daemon=True,  # Wait for threads to close when program ends
+                    ).start()
+            except Exception as e:
+                logging.error(f"Error accepting new connection: {e}")
 
     def __accept_new_connection(self) -> socket.socket:
         """
@@ -118,7 +131,8 @@ class Server:
 
     def __handle_store_bet(self, client_sock: socket.socket, bet: Bet):
         """Stores the bets and sends a response to the client if successful"""
-        store_bets([bet])
+        with self._bets_file_lock:
+            store_bets([bet])
 
         # Send a response back to the client
         send_message_with_length(client_sock, "ok")
@@ -129,7 +143,8 @@ class Server:
     def __handle_store_batch(
         self, client_sock: socket.socket, batch: List[Bet], err: Dict[str, Any]
     ):
-        store_bets(batch)
+        with self._bets_file_lock:
+            store_bets(batch)
 
         if err:
             logging.info(
@@ -140,7 +155,6 @@ class Server:
             f"action: apuesta_recibida | result: success | cantidad: {len(batch)}"
         )
 
-        # Send a response back to the client
         send_message_with_length(client_sock, "ok")
 
     def __handle_syn(self, client_sock: socket.socket, agency_id: int):
@@ -159,12 +173,13 @@ class Server:
     def __run_lottery(self):
         logging.info("action: sorteo | result: success")
 
-        for bet in load_bets():
-            if has_won(bet):
-                if bet.agency not in self._winners:
-                    self._winners[bet.agency] = []
+        with self._bets_file_lock:
+            for bet in load_bets():
+                if has_won(bet):
+                    if bet.agency not in self._winners:
+                        self._winners[bet.agency] = []
 
-                self._winners[bet.agency].append(bet.document)
+                    self._winners[bet.agency].append(bet.document)
 
         for agency_id, client_sock in self._clients_sockets.items():
             try:
@@ -174,3 +189,5 @@ class Server:
                 logging.error(
                     f"action: close_socket | result: fail | agency_id: {agency_id} | error: {e}"
                 )
+
+        self._clients_sockets = {}
