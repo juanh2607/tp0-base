@@ -42,3 +42,18 @@ server exited with code 0
 
 En particular, a los procesos se los termina enviando una señal de terminación y se los espera con
 `.join()`.
+
+
+### Como ejecutar
+Si es la primera vez que se ejecuta:
+
+`make build`  
+`make docker-image`  
+Luego:  
+
+`./generar-compose.sh docker-compose-dev.yaml 5`  
+`make docker-compose-up`  
+`make docker-compose-logs`  
+`make docker-compose-down`  
+
+**Obs**: si se ejecuta `make docker-compose-down` desde otra terminal, se puede observar el cierre ordenado del servidor.

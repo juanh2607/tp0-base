@@ -29,39 +29,44 @@ class Server:
             `listen_backlog`: max amount of pending connections before being accepted.
             `clients`: the amount of clients the server is expected to handle.
         """
-
-        # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(("", port))
         self._server_socket.listen(listen_backlog)
+
         self._running: bool = True
 
+        # The amount of clients must be between 1 and 5 bcs there are only 5 csvs with bets
         assert 0 < clients and clients <= 5
         self._clients = clients
-        self._ended_clients = multiprocessing.Value("i", 0)
+        self._processes: List[multiprocessing.Process] = []
+
+        # Manager ----------------------------------------------------------------------------------
+        # Create a process that will act as server that manages shared objects between processes.
+        # Each process will be able to access these objects through Inter Process Communication with
+        # the manager.
+        manager = multiprocessing.Manager()
 
         # Key: Agency, Value: socket communicating with that agency
-        self._clients_sockets = multiprocessing.Manager().dict()
+        self._clients_sockets = manager.dict()
 
         # Key: Agency, Value: List of DNIs of the winners
-        manager = multiprocessing.Manager()
         self._winners = manager.dict()
         for i in range(1, self._clients + 1):
             self._winners[i] = manager.list()
 
         # Lock used to protect the betting file from concurrent access
-        self._bets_file_lock = multiprocessing.Lock()
+        self._bets_file_lock = manager.Lock()
 
-        self._ended_clients_lock = multiprocessing.Lock()
+        self._ended_clients_lock = manager.Lock()
+        self._ended_clients = manager.Value("i", 0)
 
-        self._lottery_runned = multiprocessing.Value("b", False)
+        self._lottery_runned = manager.Value("b", False)
 
-        # Signal handlers
+        # Signal handlers --------------------------------------------------------------------------
         # SIGTERM is the standard signal for requesting a process to terminate gracefully.
         signal.signal(signal.SIGTERM, self.handle_signal)
         # SIGINT is the signal received when the user presses `CTRL + C` in the terminal.
         signal.signal(signal.SIGINT, self.handle_signal)
-        self._processes = []
 
     def handle_signal(self, signum, frame):
         """Handle termination signals for graceful shutdown"""
@@ -86,11 +91,9 @@ class Server:
                 process.join()  # Wait for the process to end
 
             logging.info("action: terminating_processes | result: success")
-
             logging.info("action: shutdown | result: success")
         except OSError as e:
-            logging.info(f"action: closing_listener | result: fail | error: {e}")
-            logging.info("action: shutdown | result: fail")
+            logging.info(f"action: shutdown | result: fail | error: {e}")
 
     def run(self):
         while self._running:
